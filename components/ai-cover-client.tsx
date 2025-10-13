@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { Bell, Music, Home, Mic, ImageIcon, Upload, Loader2 } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -26,15 +28,47 @@ export default function AICoverClient({ user, profile, unreadNotifications }: AI
   const [songUrl, setSongUrl] = useState("")
   const [coverStyle, setCoverStyle] = useState("")
   const [isGenerating, setIsGenerating] = useState(false)
+  const [audioFile, setAudioFile] = useState<File | null>(null)
+  const [uploadProgress, setUploadProgress] = useState(0)
 
   const displayName = profile?.display_name || user.email?.split("@")[0] || "User"
   const avatarInitial = displayName[0]?.toUpperCase() || "U"
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (!file.type.startsWith("audio/")) {
+        toast({
+          title: "Invalid File",
+          description: "Please upload an audio file (MP3, WAV, etc.)",
+          variant: "destructive",
+        })
+        return
+      }
+
+      if (file.size > 10 * 1024 * 1024) {
+        toast({
+          title: "File Too Large",
+          description: "Please upload a file smaller than 10MB",
+          variant: "destructive",
+        })
+        return
+      }
+
+      setAudioFile(file)
+      setSongUrl("") // Clear URL if file is uploaded
+      toast({
+        title: "File Selected",
+        description: `${file.name} ready to upload`,
+      })
+    }
+  }
+
   const handleCreateCover = async () => {
-    if (!songUrl) {
+    if (!songUrl && !audioFile) {
       toast({
         title: "Missing Information",
-        description: "Please provide a song URL to create a cover.",
+        description: "Please provide a song URL or upload an audio file.",
         variant: "destructive",
       })
       return
@@ -51,14 +85,67 @@ export default function AICoverClient({ user, profile, unreadNotifications }: AI
 
     setIsGenerating(true)
 
-    // Simulate cover generation (you would integrate with actual API)
-    setTimeout(() => {
-      setIsGenerating(false)
-      toast({
-        title: "Coming Soon!",
-        description: "AI Cover generation will be available in the next update.",
+    try {
+      let audioUrl = songUrl
+
+      if (audioFile) {
+        const formData = new FormData()
+        formData.append("file", audioFile)
+        formData.append("userId", user.id)
+
+        const uploadResponse = await fetch("/api/upload-audio", {
+          method: "POST",
+          body: formData,
+        })
+
+        if (!uploadResponse.ok) {
+          throw new Error("Failed to upload audio file")
+        }
+
+        const uploadData = await uploadResponse.json()
+        audioUrl = uploadData.url
+      }
+
+      const response = await fetch("/api/generate-cover", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          audioUrl,
+          coverStyle: coverStyle || "original style",
+          userId: user.id,
+        }),
       })
-    }, 2000)
+
+      if (!response.ok) {
+        throw new Error("Failed to generate cover")
+      }
+
+      const data = await response.json()
+
+      toast({
+        title: "Cover Generation Started!",
+        description: "Your AI cover is being created. This may take a few minutes.",
+      })
+
+      setSongUrl("")
+      setCoverStyle("")
+      setAudioFile(null)
+
+      setTimeout(() => {
+        router.push("/library")
+      }, 2000)
+    } catch (error) {
+      console.error("Error generating cover:", error)
+      toast({
+        title: "Generation Failed",
+        description: "There was an error generating your cover. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsGenerating(false)
+    }
   }
 
   return (
@@ -103,20 +190,55 @@ export default function AICoverClient({ user, profile, unreadNotifications }: AI
 
         {/* Song URL Input */}
         <div className="mb-6">
-          <label className="block text-sm font-medium mb-2">Song URL or Upload</label>
+          <label className="block text-sm font-medium mb-2">Song URL</label>
           <div className="bg-zinc-900 rounded-2xl p-4 border border-zinc-800">
             <input
               type="text"
               value={songUrl}
-              onChange={(e) => setSongUrl(e.target.value)}
-              placeholder="Paste song URL (YouTube, Spotify, etc.)"
+              onChange={(e) => {
+                setSongUrl(e.target.value)
+                if (e.target.value) setAudioFile(null) // Clear file if URL is entered
+              }}
+              placeholder="Paste song URL (YouTube, Spotify, SoundCloud, etc.)"
               className="w-full bg-transparent border-none text-white placeholder:text-zinc-600 focus:outline-none"
+              disabled={!!audioFile}
             />
           </div>
-          <Button variant="outline" className="mt-3 w-full border-zinc-700 text-white hover:bg-zinc-800 bg-transparent">
-            <Upload className="w-4 h-4 mr-2" />
-            Or Upload Audio File
-          </Button>
+        </div>
+
+        {/* File Upload Section */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium mb-2">Or Upload Audio File</label>
+          <div className="bg-zinc-900 rounded-2xl p-4 border border-zinc-800">
+            <input
+              type="file"
+              accept="audio/*"
+              onChange={handleFileUpload}
+              className="hidden"
+              id="audio-upload"
+              disabled={!!songUrl}
+            />
+            <label
+              htmlFor="audio-upload"
+              className="flex items-center justify-center gap-2 cursor-pointer hover:bg-zinc-800 p-4 rounded-lg transition-colors"
+            >
+              <Upload className="w-5 h-5 text-[#00ff00]" />
+              <span className="text-white">
+                {audioFile ? audioFile.name : "Click to upload audio file (MP3, WAV, etc.)"}
+              </span>
+            </label>
+            {audioFile && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setAudioFile(null)}
+                className="mt-2 text-red-500 hover:text-red-400"
+              >
+                Remove file
+              </Button>
+            )}
+          </div>
+          <p className="text-xs text-zinc-500 mt-2">Max file size: 10MB</p>
         </div>
 
         {/* Cover Style */}
