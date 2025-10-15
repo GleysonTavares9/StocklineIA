@@ -6,6 +6,10 @@ import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 import { Toaster } from "@/components/ui/toaster"
 import { Suspense } from "react"
+import Header from "@/components/Header"
+import BottomNav from "@/components/BottomNav"
+import { createClient } from "@/lib/supabase/server"
+import { cookies } from "next/headers"
 
 export const metadata: Metadata = {
   title: "v0 App",
@@ -13,15 +17,42 @@ export const metadata: Metadata = {
   generator: "v0.app",
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const cookieStore = cookies()
+  const supabase = createClient(cookieStore)
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  let profile = null
+  if (user) {
+    const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single()
+    profile = data
+  }
+
+  let unreadNotifications = 0
+  if (user) {
+    const { count } = await supabase
+      .from("notifications")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("read", false)
+    unreadNotifications = count || 0
+  }
+
   return (
     <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable} antialiased`}>
-      <body>
-        <Suspense fallback={<div>Loading...</div>}>{children}</Suspense>
+      <body className="bg-black text-white pb-20">
+        {user && profile && <Header user={user} profile={profile} unreadNotifications={unreadNotifications} />}
+        <main>
+          <Suspense fallback={<div>Loading...</div>}>{children}</Suspense>
+        </main>
+        {user && <BottomNav />}
         <Toaster />
         <Analytics />
       </body>

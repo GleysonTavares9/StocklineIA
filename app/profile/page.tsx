@@ -5,9 +5,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Music2, LogOut } from "lucide-react"
 import Link from "next/link"
+import { cookies } from "next/headers"
 
 export default async function ProfilePage() {
-  const supabase = await createClient()
+  const cookieStore = cookies()
+  const supabase = createClient(cookieStore)
 
   const {
     data: { user },
@@ -27,22 +29,6 @@ export default async function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      {/* Header */}
-      <header className="border-b border-[#2a2a2a] bg-black px-4 py-3">
-        <div className="flex items-center justify-between max-w-4xl mx-auto">
-          <Link href="/" className="flex items-center gap-2">
-            <Music2 className="h-6 w-6 text-[#00ff00]" />
-            <span className="text-xl font-bold">StocklineIA</span>
-          </Link>
-          <form action="/auth/logout" method="post">
-            <Button type="submit" variant="ghost" size="sm" className="text-gray-400 hover:text-white">
-              <LogOut className="h-4 w-4 mr-2" />
-              Logout
-            </Button>
-          </form>
-        </div>
-      </header>
-
       <div className="max-w-4xl mx-auto p-6 space-y-6">
         {/* Profile Card */}
         <Card className="bg-[#1a1a1a] border-[#2a2a2a]">

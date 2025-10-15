@@ -150,39 +150,6 @@ export default function AICoverClient({ user, profile, unreadNotifications }: AI
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
-      {/* Header */}
-      <header className="flex items-center justify-between px-4 py-4 border-b border-zinc-800">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-[#00ff00] rounded-lg flex items-center justify-center">
-            <Music className="w-5 h-5 text-black" />
-          </div>
-          <h1 className="text-xl font-bold">StocklineIA</h1>
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-zinc-400">
-            Credits: <span className="text-[#00ff00]">{profile?.credits || 0}</span>
-          </span>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-white hover:bg-zinc-800 relative"
-            onClick={() => router.push("/notifications")}
-          >
-            <Bell className="w-5 h-5" />
-            {unreadNotifications > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                {unreadNotifications}
-              </span>
-            )}
-          </Button>
-          <button onClick={() => router.push("/profile")}>
-            <Avatar className="w-10 h-10 bg-zinc-700 cursor-pointer hover:ring-2 hover:ring-[#00ff00] transition-all">
-              <AvatarFallback className="bg-[#00ff00] text-black font-bold">{avatarInitial}</AvatarFallback>
-            </Avatar>
-          </button>
-        </div>
-      </header>
-
       {/* Main Content */}
       <main className="flex-1 px-4 py-6 overflow-y-auto">
         <h2 className="text-2xl font-bold mb-2">AI Cover</h2>
@@ -288,26 +255,6 @@ export default function AICoverClient({ user, profile, unreadNotifications }: AI
           )}
         </Button>
       </main>
-
-      {/* Bottom Navigation */}
-      <nav className="flex items-center justify-around px-4 py-3 border-t border-zinc-800 bg-black">
-        <button onClick={() => router.push("/featured")} className="flex flex-col items-center gap-1 text-zinc-400">
-          <Home className="w-6 h-6" />
-          <span className="text-xs">Featured</span>
-        </button>
-        <button onClick={() => router.push("/")} className="flex flex-col items-center gap-1 text-zinc-400">
-          <Music className="w-6 h-6" />
-          <span className="text-xs">AI Music</span>
-        </button>
-        <button className="flex flex-col items-center gap-1 text-[#00ff00]">
-          <Mic className="w-6 h-6" />
-          <span className="text-xs font-medium">AI Cover</span>
-        </button>
-        <button onClick={() => router.push("/library")} className="flex flex-col items-center gap-1 text-zinc-400">
-          <ImageIcon className="w-6 h-6" />
-          <span className="text-xs">Library</span>
-        </button>
-      </nav>
     </div>
   )
 }

@@ -1,27 +1,27 @@
-import { createServerClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
-import AICoverClient from "@/components/ai-cover-client"
+import { createClient } from "@/lib/supabase/server"
+import AiCoverClient from "@/components/ai-cover-client"
+import { cookies } from "next/headers"
 
-export default async function AICoverPage() {
-  const supabase = await createServerClient()
+export default async function AiCoverPage() {
+  const cookieStore = cookies()
+  const supabase = createClient(cookieStore)
 
   const {
     data: { user },
+    error,
   } = await supabase.auth.getUser()
-
-  if (!user) {
+  if (error || !user) {
     redirect("/auth/login")
   }
 
-  // Get user profile
   const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single()
 
-  // Get unread notifications count
   const { count: unreadNotifications } = await supabase
     .from("notifications")
     .select("*", { count: "exact", head: true })
     .eq("user_id", user.id)
     .eq("read", false)
 
-  return <AICoverClient user={user} profile={profile} unreadNotifications={unreadNotifications || 0} />
+  return <AiCoverClient user={user} profile={profile} unreadNotifications={unreadNotifications || 0} />
 }

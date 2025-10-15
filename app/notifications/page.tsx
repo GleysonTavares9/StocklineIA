@@ -3,9 +3,11 @@ import { createClient } from "@/lib/supabase/server"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Music2, Bell, CheckCircle2, Info, AlertCircle } from "lucide-react"
 import Link from "next/link"
+import { cookies } from "next/headers"
 
 export default async function NotificationsPage() {
-  const supabase = await createClient()
+  const cookieStore = cookies()
+  const supabase = createClient(cookieStore)
 
   const {
     data: { user },
@@ -34,17 +36,6 @@ export default async function NotificationsPage() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      {/* Header */}
-      <header className="border-b border-[#2a2a2a] bg-black px-4 py-3">
-        <div className="flex items-center justify-between max-w-4xl mx-auto">
-          <Link href="/" className="flex items-center gap-2">
-            <Music2 className="h-6 w-6 text-[#00ff00]" />
-            <span className="text-xl font-bold">StocklineIA</span>
-          </Link>
-          <Bell className="h-6 w-6 text-[#00ff00]" />
-        </div>
-      </header>
-
       <div className="max-w-4xl mx-auto p-6">
         <Card className="bg-[#1a1a1a] border-[#2a2a2a]">
           <CardHeader>

@@ -1,35 +1,52 @@
-import { createServerClient } from "@/lib/supabase/server"
-import { redirect } from "next/navigation"
-import PlansClient from "@/components/plans-client"
+import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
+import PlansClient from "@/components/plans-client";
+import { cookies } from "next/headers";
 
 export default async function PlansPage() {
-  const supabase = createServerClient()
+  const cookieStore = cookies()
+  const supabase = createClient(cookieStore);
 
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/auth/login")
+    return redirect("/auth/login");
   }
 
-  // Fetch plans
-  const { data: plans } = await supabase
-    .from("plans")
-    .select("*")
-    .eq("is_active", true)
-    .order("price", { ascending: true })
+  // Planos são definidos diretamente no código para facilitar a configuração
+  // Substitua os price_ids pelos IDs de preço reais do seu painel Stripe
+  const plans = [
+    {
+      id: "1",
+      name: "Básico",
+      price: 10,
+      credits: 10,
+      price_id: "prod_T8GcqvDRwpgXCz", // SUBSTITUA PELO SEU ID DE PREÇO REAL
+    },
+    {
+      id: "2",
+      name: "Pro",
+      price: 49.90,
+      credits: 100,
+      price_id: "prod_TCFeipCb4e6TQo", // SUBSTITUA PELO SEU ID DE PREÇO REAL
+    },
+    {
+      id: "3",
+      name: "Premium",
+      price: 100,
+      credits: 500,
+      price_id: "prod_T8GdGuaWDbgFvV", // SUBSTITUA PELO SEU ID DE PREÇO REAL
+    },
+  ];
 
-  // Fetch user's current subscription
   const { data: subscription } = await supabase
-    .from("subscriptions")
-    .select("*, plans(*)")
+    .from("user_subscriptions")
+    .select("plan_id, status")
     .eq("user_id", user.id)
-    .eq("status", "active")
-    .single()
+    .in("status", ["trialing", "active"])
+    .maybeSingle();
 
-  // Fetch user's profile for credits
-  const { data: profile } = await supabase.from("profiles").select("credits").eq("id", user.id).single()
-
-  return <PlansClient plans={plans || []} currentSubscription={subscription} currentCredits={profile?.credits || 0} />
+  return <PlansClient user={user} plans={plans || []} subscription={subscription} />;
 }

@@ -1,9 +1,11 @@
-import { createServerClient } from "@/lib/supabase/server"
+import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import LibraryClient from "@/components/library-client"
+import { cookies } from "next/headers"
 
 export default async function LibraryPage() {
-  const supabase = await createServerClient()
+  const cookieStore = cookies()
+  const supabase = createClient(cookieStore)
 
   const {
     data: { user },
