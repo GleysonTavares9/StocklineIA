@@ -9,11 +9,18 @@ export async function GET(request: Request) {
   const next = searchParams.get("next") ?? "/"
 
   if (code) {
-    const cookieStore = cookies()
-    const supabase = createClient(cookieStore)
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (!error) {
-      return NextResponse.redirect(`${origin}${next}`)
+    try {
+      const supabase = await createClient()
+      const { error } = await supabase.auth.exchangeCodeForSession(code)
+      
+      if (!error) {
+        // Redireciona para a página inicial após o login bem-sucedido
+        return NextResponse.redirect(`${origin}${next}`)
+      }
+      
+      console.error('Erro ao trocar código por sessão:', error)
+    } catch (error) {
+      console.error('Erro no callback de autenticação:', error)
     }
   }
 

@@ -1,22 +1,25 @@
 'use client'
 
-import { Bell, Music, LayoutDashboard, LogOut, CreditCard } from "lucide-react"
+import { Bell, ChevronDown, CreditCard, LogOut, Settings, User, Music } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
+import { ptBR } from "@/lib/translations"
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useRouter } from "next/navigation"
-import type { User } from "@supabase/supabase-js"
+import type { User as SupabaseUser } from "@supabase/supabase-js"
 import { logout } from "@/app/auth/logout/actions"
+import { useEffect, useState } from "react"
 
 interface HeaderProps {
-  user: User
+  user: SupabaseUser
   profile: {
     id: string
     email: string
@@ -29,8 +32,9 @@ interface HeaderProps {
 export default function Header({ user, profile, unreadNotifications }: HeaderProps) {
   const router = useRouter()
 
-  const displayName = profile?.display_name || user.email?.split("@")[0] || "User"
+  const displayName = profile?.display_name || user.email?.split("@")[0] || "Usuário"
   const avatarInitial = displayName[0]?.toUpperCase() || "U"
+  const t = ptBR.header
 
   const handleLogout = async () => {
     await logout()
@@ -42,21 +46,21 @@ export default function Header({ user, profile, unreadNotifications }: HeaderPro
         <div className="w-8 h-8 bg-[#338d97] rounded-lg flex items-center justify-center">
           <Music className="w-5 h-5 text-white" />
         </div>
-        <h1 className="text-xl font-bold text-gray-900">StocklineIA</h1>
+        <h1 className="text-xl font-bold text-gray-900">{t.appName}</h1>
       </div>
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2 bg-gray-100 border border-gray-200 rounded-full px-3 py-1">
           <CreditCard className="w-4 h-4 text-[#338d97]" />
-          <span className="text-sm font-medium text-gray-700">{profile?.credits || 0}</span>
+          <span className="text-sm font-medium text-gray-700">{profile?.credits || 0} créditos</span>
         </div>
 
         <Button
           variant="ghost"
           size="icon"
-          className="text-white hover:bg-zinc-800 relative"
+          className="text-gray-700 hover:bg-gray-100 relative"
           onClick={() => router.push("/notifications")}
         >
-          <Bell className="w-5 h-5" />
+          <Bell className="w-5 h-5 text-gray-700" />
           {unreadNotifications > 0 && (
             <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
               {unreadNotifications}
@@ -64,37 +68,58 @@ export default function Header({ user, profile, unreadNotifications }: HeaderPro
           )}
         </Button>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-             <Avatar className="w-10 h-10 bg-zinc-700 cursor-pointer hover:ring-2 hover:ring-primary transition-all">
-                <AvatarFallback className="bg-primary text-black font-bold">{avatarInitial}</AvatarFallback>
-              </Avatar>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56" align="end" forceMount>
-            <DropdownMenuLabel className="font-normal">
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">{displayName}</p>
-                <p className="text-xs leading-none text-muted-foreground">
-                  {user.email}
-                </p>
+        <div className="relative">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button 
+                className="flex items-center gap-2 focus:outline-none"
+                aria-label={t.userMenu.userMenu}
+              >
+                <Avatar className="h-10 w-10 border-2 border-white shadow-sm hover:ring-2 hover:ring-[#338d97] transition-all">
+                  <AvatarFallback className="bg-[#338d97] text-white font-medium">
+                    {avatarInitial}
+                  </AvatarFallback>
+                </Avatar>
+                <ChevronDown className="h-4 w-4 text-gray-500" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56" align="end" forceMount>
+              <div className="flex items-center gap-3 p-3 border-b">
+                <Avatar className="h-10 w-10">
+                  <AvatarFallback className="bg-[#338d97] text-white font-medium">
+                    {avatarInitial}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{displayName}</p>
+                  <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                </div>
               </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => router.push('/profile')}>
-              <LayoutDashboard className="mr-2 h-4 w-4" />
-              <span>Profile</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => router.push('/billing')}>
-              <CreditCard className="mr-2 h-4 w-4" />
-              <span>Billing</span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout}>
-              <LogOut className="mr-2 h-4 w-4" />
-              <span>Log out</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              <DropdownMenuGroup>
+                <DropdownMenuItem onClick={() => router.push('/profile')}>
+                  <User className="mr-2 h-4 w-4" />
+                  <span>{t.userMenu.profile}</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push('/billing')}>
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  <span>{t.userMenu.billing}</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push('/settings')}>
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>{t.userMenu.settings}</span>
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                onClick={handleLogout} 
+                className="text-red-600 focus:text-red-600 focus:bg-red-50"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>{t.userMenu.signOut}</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
 
       </div>
     </header>

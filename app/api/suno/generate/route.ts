@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 type GenerateRequest = {
   prompt: string;
   duration?: number;
-  tags?: string[];
+  tags?: string;
   title?: string;
   style?: string;
   userId: string;
@@ -15,7 +15,7 @@ type GenerateRequest = {
 type SongMetadata = {
   provider: string;
   duration: number;
-  tags: string[];
+  tags: string;
   style?: string;
   generated_at: string;
   [key: string]: unknown;
@@ -45,7 +45,7 @@ type UserActivity = {
 export async function POST(request: Request) {
   try {
     // Inicializar o cliente Supabase com cookies assíncronos
-    const supabase = createClient();
+    const supabase = await createClient();
     
     // Verificar autenticação
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -75,7 +75,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { prompt, duration = 60, tags = [], title, style } = body;
+    const { prompt, duration = 60, tags, title, style } = body;
     const userId = user.id;
 
     // Verificar se o ID do usuário está presente
@@ -92,35 +92,35 @@ export async function POST(request: Request) {
 
     // Verificar créditos
     const { data: profile, error: profileError } = await supabase
-  .from('profiles')
-  .select('credits')
-  .eq('id', user.id)
-  .single();
-  
-// Handle profile not found error
-if (profileError || !profile) {
-  console.error('Error loading profile:', profileError);
-  return NextResponse.json(
-    {
-      success: false,
-      error: 'Error loading user profile',
-      code: 'PROFILE_ERROR'
-    },
-    { status: 400 }
-  );
-}
+      .from('profiles')
+      .select('credits')
+      .eq('id', user.id)
+      .single();
+    
+    // Handle profile not found error
+    if (profileError || !profile) {
+      console.error('Error loading profile:', profileError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Error loading user profile',
+          code: 'PROFILE_ERROR'
+        },
+        { status: 400 }
+      );
+    }
 
-// Check if user has enough credits
-if (!profile.credits || profile.credits <= 0) {
-  return NextResponse.json(
-    { 
-      success: false,
-      error: 'Insufficient credits',
-      code: 'INSUFFICIENT_CREDITS'
-    }, 
-    { status: 400 }
-  );
-}
+    // Check if user has enough credits
+    if (!profile.credits || profile.credits <= 0) {
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'Insufficient credits',
+          code: 'INSUFFICIENT_CREDITS'
+        }, 
+        { status: 400 }
+      );
+    }
 
     if ((profile.credits || 0) < 1) {
       return NextResponse.json(
@@ -150,21 +150,39 @@ if (!profile.credits || profile.credits <= 0) {
 
     const suno = getSunoClient({
       apiKey: sunoApiKey,
-      baseUrl: process.env.SUNO_API_BASE_URL || 'https://api.suno.ai/v1',
-      timeout: 60000 // 60 segundos
+      baseUrl: process.env.SUNO_API_BASE_URL || 'https://suno-api-eta.vercel.app',
+      timeout: 300000 // 5 minutos
     });
 
-    // Preparar tags
-    const songTags = [...(tags || [])];
-    if (style) songTags.push(style);
+    // Preparar parâmetros
+    const songTags = typeof tags === 'string' ? tags : (tags || []).join(', ');
+    const songTitle = title || `Música Gerada - ${new Date().toLocaleString('pt-BR')}`;
+    const songDuration = Math.min(Math.max(30, duration), 300); // 30s a 5min
+
+    console.log('Enviando requisição para a API Suno com os seguintes parâmetros:', {
+      prompt,
+      title: songTitle,
+      tags: songTags,
+      duration: songDuration,
+      style: style || 'chill'
+    });
 
     // Gerar música
     const result = await suno.generateSong({
-      prompt,
-      duration: Math.min(Math.max(30, duration), 300), // 30s a 5min
+      prompt: prompt!,
+      title: songTitle,
       tags: songTags,
-      title: title || `Música Gerada - ${new Date().toLocaleString('pt-BR')}`,
+      duration: songDuration,
+      style: style || 'chill',
+      instrument: false,
+      mv: 'chirp-v3-0'
     });
+
+    console.log('Resposta da API Suno:', JSON.stringify(result, null, 2));
+
+    if (!result || !result.audio_url) {
+      throw new Error('Resposta inesperada da API Suno');
+    }
 
     // Atualizar créditos
     const { error: updateError } = await supabase
@@ -183,16 +201,17 @@ if (!profile.credits || profile.credits <= 0) {
     // Salvar metadados da música
     const songData = {
       user_id: user.id,
-      title: title || 'Música Gerada',
+      title: songTitle,
       status: 'completed',
       audio_url: result.audio_url,
-      duration: result.duration || duration,
+      duration: songDuration,
       metadata: {
         provider: 'suno-ai',
-        duration: result.duration || duration,
+        duration: songDuration,
         tags: songTags,
-        style,
-        generated_at: new Date().toISOString()
+        style: style || 'chill',
+        generated_at: new Date().toISOString(),
+        ...result
       },
     };
 
@@ -210,10 +229,11 @@ if (!profile.credits || profile.credits <= 0) {
       user_id: user.id,
       action: 'generate_song',
       metadata: {
-        song_title: songData.title,
-        duration: songData.duration,
+        song_title: songTitle,
+        duration: songDuration,
         credits_used: 1,
-        remaining_credits: (profile.credits || 1) - 1
+        remaining_credits: (profile.credits || 1) - 1,
+        song_id: songData.id
       }
     });
 
@@ -225,14 +245,15 @@ if (!profile.credits || profile.credits <= 0) {
       }
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro ao gerar música:', error);
     
     return NextResponse.json(
       { 
         success: false,
         error: 'Ocorreu um erro ao processar sua solicitação. Por favor, tente novamente.',
-        code: 'INTERNAL_ERROR'
+        code: 'INTERNAL_ERROR',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
       },
       { status: 500 }
     );

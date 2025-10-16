@@ -141,27 +141,9 @@ export default function MusicGeneratorClient({ user, profile, subscription, unre
       return;
     }
 
-    if (!lyricsText.trim()) {
-      toast({
-        title: "Erro",
-        description: "Por favor, insira ou gere uma letra para a música.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    if (!descriptionText.trim() || descriptionText.trim().length < 10) {
-      toast({
-        title: "Erro na descrição",
-        description: "O campo de descrição é obrigatório e deve ter pelo menos 10 caracteres.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsGenerating(true);
-
     try {
+      setIsGenerating(true);
+
       const response = await fetch("/api/suno/generate", {
         method: "POST",
         headers: {
@@ -176,30 +158,35 @@ export default function MusicGeneratorClient({ user, profile, subscription, unre
         }),
       });
 
-      const data = await response.json();
-console.log('API Response:', { status: response.status, data });
+      const data = await response.json().catch(error => {
+        console.error('Erro ao fazer parse da resposta:', error);
+        throw new Error('Resposta inválida do servidor');
+      });
 
-if (!response.ok) {
-  // Handle profile-specific errors
-  if (data.error && data.error.includes("perfil")) {
-    toast({
-      title: "Erro de perfil",
-      description: "Não foi possível carregar seu perfil. Por favor, atualize a página e tente novamente.",
-      variant: "destructive",
-    });
-    return;
-  }
-  
-  // Log detailed error information
-  console.error('API Error Details:', {
-    status: response.status,
-    statusText: response.statusText,
-    error: data.error,
-    data
-  });
-  
-  throw new Error(data.error || `Falha ao gerar música (${response.status} ${response.statusText})`);
-}
+      console.log('API Response:', { status: response.status, data });
+
+      if (!response.ok) {
+        // Mapeamento de códigos de erro para mensagens amigáveis
+        const errorMessages: Record<string, string> = {
+          'INSUFFICIENT_CREDITS': 'Créditos insuficientes. Por favor, adquira mais créditos para continuar.',
+          'UNAUTHORIZED': 'Sessão expirada. Por favor, faça login novamente.',
+          'INVALID_INPUT': 'Dados de entrada inválidos. Verifique as informações e tente novamente.',
+          'PROFILE_ERROR': 'Erro ao carregar perfil do usuário.',
+          'SERVER_ERROR': 'Erro interno do servidor. Tente novamente mais tarde.'
+        };
+
+        const errorMessage = data?.code && errorMessages[data.code] 
+          ? errorMessages[data.code]
+          : data?.error || `Erro ao processar sua solicitação (${response.status})`;
+
+        if (data?.code === 'INSUFFICIENT_CREDITS' && data?.redirectUrl) {
+          // Redireciona para a página de planos se não houver créditos
+          router.push(data.redirectUrl);
+          return;
+        }
+
+        throw new Error(errorMessage);
+      }
 
       toast({
         title: "Música gerada com sucesso!",

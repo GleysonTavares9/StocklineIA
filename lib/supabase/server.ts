@@ -3,50 +3,77 @@ import { cookies } from 'next/headers'
 
 export const createClient = () => {
   const cookieStore = cookies()
-
+  
+  // Criando um objeto que implementa a interface esperada
+  const cookieMethods = {
+    getItem: (key: string) => {
+      return cookieStore.get(key)?.value || null
+    },
+    setItem: (key: string, value: string) => {
+      try {
+        cookieStore.set({
+          name: key,
+          value,
+          path: '/',
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+        })
+      } catch (error) {
+        console.error('Error setting cookie:', error)
+      }
+    },
+    removeItem: (key: string) => {
+      try {
+        cookieStore.set({
+          name: key,
+          value: '',
+          maxAge: 0,
+          path: '/',
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+        })
+      } catch (error) {
+        console.error('Error removing cookie:', error)
+      }
+    },
+    getAll: () => {
+      return cookieStore.getAll().map(cookie => ({
+        name: cookie.name,
+        value: cookie.value
+      }))
+    }
+  }
+  
   return createSupabaseServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      auth: {
+        detectSessionInUrl: true,
+        persistSession: true,
+        autoRefreshToken: true,
+      },
       cookies: {
-        get(name: string) {
-          try {
-            return cookieStore.get(name)?.value
-          } catch (error) {
-            console.error('Error getting cookie:', error)
-            return null
-          }
+        get: cookieMethods.getItem,
+        set: (name: string, value: string, options: any) => {
+          cookieMethods.setItem(name, value)
+          return Promise.resolve()
         },
-        set(name: string, value: string, options: any) {
-          try {
-            cookieStore.set({
-              name,
-              value,
-              ...options,
-              path: '/',
-              httpOnly: true,
-              secure: process.env.NODE_ENV === 'production',
-              sameSite: 'lax',
-            })
-          } catch (error) {
-            console.error('Error setting cookie:', error)
-          }
-        },
-        remove(name: string, options: any = {}) {
-          try {
-            cookieStore.set({
-              name,
-              value: '',
-              ...options,
-              path: '/',
-              maxAge: 0
-            })
-          } catch (error) {
-            console.error('Error removing cookie:', error)
-          }
+        remove: (name: string, options: any) => {
+          cookieMethods.removeItem(name)
+          return Promise.resolve()
         },
       },
-    }
+      cookieOptions: {
+        name: 'sb-auth-token',
+        lifetime: 60 * 60 * 24 * 7, // 1 week
+        domain: '',
+        path: '/',
+        sameSite: 'lax'
+      }
+    } as any // Forçando o tipo para evitar erros de tipagem
   )
 }
 
