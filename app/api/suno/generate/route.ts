@@ -150,7 +150,7 @@ export async function POST(request: Request) {
 
     const suno = getSunoClient({
       apiKey: sunoApiKey,
-      baseUrl: process.env.SUNO_API_BASE_URL || 'https://suno-api-eta.vercel.app',
+      baseUrl: process.env.SUNO_API_BASE_URL || 'https://api.sunoapi.org',
       timeout: 300000 // 5 minutos
     });
 
@@ -158,13 +158,15 @@ export async function POST(request: Request) {
     const songTags = typeof tags === 'string' ? tags : (tags || []).join(', ');
     const songTitle = title || `Música Gerada - ${new Date().toLocaleString('pt-BR')}`;
     const songDuration = Math.min(Math.max(30, duration), 300); // 30s a 5min
+    const callBackUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/suno/callback`;
 
     console.log('Enviando requisição para a API Suno com os seguintes parâmetros:', {
-      prompt,
+      prompt: prompt?.substring(0, 50) + '...',
       title: songTitle,
       tags: songTags,
       duration: songDuration,
-      style: style || 'chill'
+      style: style || 'chill',
+      callBackUrl
     });
 
     // Gerar música
@@ -174,14 +176,46 @@ export async function POST(request: Request) {
       tags: songTags,
       duration: songDuration,
       style: style || 'chill',
-      instrument: false,
-      mv: 'chirp-v3-0'
+      instrumental: false,
+      mv: 'chirp-v3-0',
+      callBackUrl,
+      customMode: true,
+      model: 'V3_5',
+      vocalGender: 'f',
+      styleWeight: 0.65,
+      weirdnessConstraint: 0.65,
+      audioWeight: 0.65
     });
 
     console.log('Resposta da API Suno:', JSON.stringify(result, null, 2));
 
-    if (!result || !result.audio_url) {
-      throw new Error('Resposta inesperada da API Suno');
+    if (!result || !result.data || !result.data.taskId) {
+      throw new Error('Resposta inesperada da API Suno: taskId não encontrado');
+    }
+
+    const taskId = result.data.taskId;
+
+    // Salvar a tarefa no banco de dados para acompanhamento
+    const { error: taskError } = await supabase
+      .from('suno_tasks')
+      .insert({
+        task_id: taskId,
+        user_id: user.id,
+        status: 'pending',
+        metadata: {
+          title: songTitle,
+          prompt: prompt,
+          style: style || 'chill',
+          duration: songDuration,
+          tags: songTags,
+          callBackUrl
+        },
+        created_at: new Date().toISOString()
+      });
+
+    if (taskError) {
+      console.error('Erro ao salvar tarefa:', taskError);
+      // Não interrompemos o fluxo, apenas registramos o erro
     }
 
     // Atualizar créditos
@@ -198,62 +232,44 @@ export async function POST(request: Request) {
       // Não interrompemos o fluxo, apenas registramos o erro
     }
 
-    // Salvar metadados da música
-    const songData = {
-      user_id: user.id,
-      title: songTitle,
-      status: 'completed',
-      audio_url: result.audio_url,
-      duration: songDuration,
-      metadata: {
-        provider: 'suno-ai',
-        duration: songDuration,
-        tags: songTags,
-        style: style || 'chill',
-        generated_at: new Date().toISOString(),
-        ...result
-      },
-    };
-
-    const { error: songError } = await supabase
-      .from('songs')
-      .insert(songData);
-
-    if (songError) {
-      console.error('Erro ao salvar música:', songError);
-      // Não interrompemos o fluxo, apenas registramos o erro
-    }
-
     // Registrar atividade
-    await supabase.from('user_activities').insert({
+    const activity: UserActivity = {
       user_id: user.id,
-      action: 'generate_song',
+      action: 'song_generated',
       metadata: {
         song_title: songTitle,
         duration: songDuration,
         credits_used: 1,
-        remaining_credits: (profile.credits || 1) - 1,
-        song_id: songData.id
+        remaining_credits: (profile.credits || 1) - 1
       }
-    });
+    };
+
+    const { error: activityError } = await supabase
+      .from('user_activities')
+      .insert(activity);
+
+    if (activityError) {
+      console.error('Erro ao registrar atividade:', activityError);
+      // Não interrompemos o fluxo, apenas registramos o erro
+    }
 
     return NextResponse.json({
       success: true,
       data: {
-        ...result,
-        credits_remaining: (profile.credits || 1) - 1
+        taskId: taskId,
+        status: 'pending',
+        message: 'Sua música está sendo gerada. Você receberá uma notificação quando estiver pronta.'
       }
     });
 
   } catch (error: any) {
     console.error('Erro ao gerar música:', error);
-    
     return NextResponse.json(
       { 
         success: false,
-        error: 'Ocorreu um erro ao processar sua solicitação. Por favor, tente novamente.',
-        code: 'INTERNAL_ERROR',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: error.message || 'Ocorreu um erro ao processar sua solicitação',
+        code: 'GENERATION_ERROR',
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
       },
       { status: 500 }
     );

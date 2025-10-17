@@ -51,25 +51,29 @@ export default async function RootLayout({
   }
 
   return (
-    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable} antialiased`}>
+    <html lang="pt-BR" className={`${GeistSans.variable} ${GeistMono.variable} antialiased`}>
       <body className="bg-white text-gray-900 min-h-screen flex flex-col">
-        <div className="fixed top-0 left-0 right-0 z-50 bg-white shadow-sm">
+        <div className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm supports-[backdrop-filter]:bg-white/60 shadow-sm">
           {user && profile && <Header user={user} profile={profile} unreadNotifications={unreadNotifications} />}
         </div>
         
-        <div className="flex-1 pt-20 pb-24 overflow-y-auto">
-          <main className="container mx-auto px-4 h-full">
-            <Suspense fallback={<div className="flex items-center justify-center h-full">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#338d97]"></div>
-            </div>}>
-              <div className="max-w-3xl mx-auto">
-                {children}
+        <div className="flex-1 pt-16 pb-20 sm:pt-20 sm:pb-24 overflow-y-auto">
+          <main className="w-full h-full">
+            <Suspense fallback={
+              <div className="flex items-center justify-center h-full min-h-[60vh]">
+                <div className="animate-spin rounded-full h-10 w-10 border-4 border-[#338d97] border-t-transparent"></div>
+              </div>
+            }>
+              <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6">
+                <div className="w-full">
+                  {children}
+                </div>
               </div>
             </Suspense>
           </main>
         </div>
         
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100">
+        <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-lg supports-[backdrop-filter]:bg-white/80 border-t border-gray-100 shadow-lg">
           {user && <BottomNav />}
         </div>
         
