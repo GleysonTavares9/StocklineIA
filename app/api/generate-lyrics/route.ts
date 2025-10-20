@@ -18,8 +18,9 @@ if (!global.fetch) {
 }
 
 const API_KEY = process.env.GOOGLE_AI_API_KEY;
-const BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
-const MODEL_NAME = 'gemini-1.5-flash';
+const BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
+// Usando o modelo Gemini 2.0 Flash, que é mais rápido e eficiente
+const MODEL_NAME = 'models/gemini-2.0-flash';
 const GENERATE_ENDPOINT = `${BASE_URL}/${MODEL_NAME}:generateContent`;
 
 if (!API_KEY) {
@@ -29,16 +30,40 @@ if (!API_KEY) {
   console.log('Chave da API carregada com sucesso');
 }
 
+// Função para listar modelos disponíveis
+async function listAvailableModels() {
+  try {
+    const response = await fetch(`${BASE_URL}/models?key=${API_KEY}`);
+    if (!response.ok) {
+      const error = await response.json();
+      console.error('Erro ao listar modelos:', error);
+      return [];
+    }
+    const data = await response.json();
+    return data.models || [];
+  } catch (error) {
+    console.error('Erro ao listar modelos:', error);
+    return [];
+  }
+}
+
 // Função para verificar se o modelo está disponível
 async function checkModelAvailability() {
   try {
-    const response = await fetch(`${BASE_URL}/${MODEL_NAME}?key=${API_KEY}`);
-    if (!response.ok) {
-      const error = await response.json();
-      console.error('Erro ao verificar modelo:', error);
-      return false;
+    const models = await listAvailableModels();
+    console.log('Modelos disponíveis:', models.map((m: any) => m.name));
+    
+    const modelExists = models.some((model: any) => 
+      model.name.includes(MODEL_NAME)
+    );
+    
+    if (!modelExists) {
+      console.error(`Modelo ${MODEL_NAME} não encontrado. Modelos disponíveis:`, 
+        models.map((m: any) => m.name).join(', ')
+      );
     }
-    return true;
+    
+    return modelExists;
   } catch (error) {
     console.error('Erro ao verificar modelo:', error);
     return false;
@@ -105,10 +130,10 @@ export async function POST(request: Request) {
         }]
       }],
       generationConfig: {
-        temperature: 0.8,
-        topP: 0.95,
-        topK: 40,
-        maxOutputTokens: 2000,
+        temperature: 0.9,
+        topP: 1,
+        topK: 1,
+        maxOutputTokens: 2048,
       },
       safetySettings: [
         {
