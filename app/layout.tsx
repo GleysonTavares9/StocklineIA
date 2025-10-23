@@ -12,6 +12,8 @@ import { createClient } from "@/lib/supabase/server"
 import { cookies } from "next/headers"
 import { StripeProvider } from "@/components/stripe/stripe-provider"
 
+export const dynamic = 'force-dynamic' // Impede a renderização estática
+
 export const metadata: Metadata = {
   title: "v0 App",
   description: "Created with v0",

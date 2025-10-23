@@ -1,6 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
+export const dynamic = 'force-dynamic' // Impede a renderização estática
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
