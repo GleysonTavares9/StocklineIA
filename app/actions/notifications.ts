@@ -26,48 +26,53 @@ export async function markNotificationAsReadAction(notificationId: string) {
   return { success: true }
 }
 
-export async function markAllNotificationsAsReadAction() {
-  const supabase = createClient()
+export async function markAllNotificationsAsReadAction(formData: FormData) {
+  'use server';
   
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    throw new Error('Usuário não autenticado')
-  }
+  try {
+    const supabase = createClient()
+    
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      throw new Error('Usuário não autenticado')
+    }
 
-  // Primeiro, obter os IDs das notificações não lidas
-  const { data: unreadNotifications, error: fetchError } = await supabase
-    .from('notifications')
-    .select('id')
-    .eq('user_id', user.id)
-    .eq('read', false)
+    // Primeiro, obter os IDs das notificações não lidas
+    const { data: unreadNotifications, error: fetchError } = await supabase
+      .from('notifications')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('read', false)
 
-  if (fetchError) {
-    console.error('Erro ao buscar notificações não lidas:', fetchError)
-    throw new Error('Falha ao buscar notificações')
-  }
+    if (fetchError) {
+      console.error('Erro ao buscar notificações não lidas:', fetchError)
+      throw new Error('Falha ao buscar notificações')
+    }
 
-  // Se não houver notificações não lidas, retornar sucesso
-  if (!unreadNotifications || unreadNotifications.length === 0) {
-    return { success: true, count: 0 }
-  }
+    // Se não houver notificações não lidas, retornar sucesso
+    if (!unreadNotifications || unreadNotifications.length === 0) {
+      return { success: true, count: 0 }
+    }
 
-  const notificationIds = unreadNotifications.map(n => n.id)
+    const notificationIds = unreadNotifications.map(n => n.id)
 
-  // Atualizar cada notificação individualmente
-  const { error: updateError } = await supabase
-    .from('notifications')
-    .update({ 
-      read: true
-    })
-    .in('id', notificationIds)
+    // Atualizar cada notificação individualmente
+    const { error: updateError } = await supabase
+      .from('notifications')
+      .update({ 
+        read: true
+      })
+      .in('id', notificationIds)
 
-  if (updateError) {
-    console.error('Erro ao atualizar notificações:', updateError)
-    throw new Error('Falha ao atualizar notificações')
-  }
+    if (updateError) {
+      console.error('Erro ao atualizar notificações:', updateError)
+      throw new Error('Falha ao atualizar notificações')
+    }
 
-  return { 
-    success: true, 
-    count: notificationIds.length 
+    // Redireciona de volta para a página de notificações para atualizar a UI
+    return null;
+  } catch (error) {
+    console.error('Error in markAllNotificationsAsReadAction:', error);
+    throw error;
   }
 }

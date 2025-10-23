@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import type { User as SupabaseUser } from "@supabase/supabase-js"
 import { logout } from "@/app/auth/logout/actions"
 import { useEffect, useState } from "react"
@@ -64,19 +65,21 @@ export default function Header({ user, profile, unreadNotifications }: HeaderPro
           </div>
         )}
 
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-gray-700 hover:bg-gray-100 relative"
-          onClick={() => router.push("/notifications")}
-        >
-          <Bell className="w-5 h-5 text-gray-700" />
+        <Link href="/notifications" className="relative">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-gray-700 hover:bg-gray-100"
+            asChild={false}
+          >
+            <Bell className="w-5 h-5 text-gray-700" />
+          </Button>
           {unreadNotifications > 0 && (
             <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
               {unreadNotifications}
             </span>
           )}
-        </Button>
+        </Link>
 
         <div className="relative">
           <DropdownMenu>

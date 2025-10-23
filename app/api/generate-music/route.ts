@@ -36,12 +36,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Insufficient credits" }, { status: 400 })
     }
 
-    // Skywork.ai API endpoint
-    const skyworkApiUrl = "https://api.skywork.ai/v1/music/generate"
-    const apiKey = process.env.SKYWORK_API_KEY
+    // Sonu API endpoint
+    const sonuApiUrl = "https://api.sonu.ai/v1/music/generate"
+    const apiKey = process.env.SONU_API_KEY
 
     if (!apiKey) {
-      console.error("Skywork API key not configured")
+      console.error("Sonu API key not configured")
       return NextResponse.json(
         { error: "API key not configured" },
         { status: 500 },
@@ -49,23 +49,28 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("Starting music generation for user:", user.id)
-    console.log("Prompt:", prompt)
+    console.log("Prompt:", prompt, "Style:", style, "Duration:", duration)
 
-    // CORREÇÃO: Adicionar timeout e melhor tratamento de erro
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 120000) // 2 minutos timeout
+    const timeoutId = setTimeout(() => controller.abort(), 300000) // 5 minutos timeout
 
-    const response = await fetch(skyworkApiUrl, {
+    // Formatando o prompt para a API da Sonu
+    const formattedPrompt = `${style} music, ${prompt}`.trim()
+    
+    const response = await fetch(sonuApiUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${apiKey}`,
+        "X-Requested-With": "XMLHttpRequest"
       },
       body: JSON.stringify({
-        prompt: prompt.trim(),
-        duration_seconds: Math.min(Math.max(10, duration), 300), // 10s to 5min
-        style: style.toLowerCase(),
-        format: "mp3",
+        text_prompt: formattedPrompt,
+        duration: Math.min(Math.max(10, duration), 300), // 10s to 5min
+        model: "sonu-pro",
+        output_format: "mp3",
+        quality: "high",
+        bpm: style === "electronic" ? 128 : style === "ambient" ? 90 : 100
       }),
       signal: controller.signal
     })
@@ -81,7 +86,7 @@ export async function POST(request: NextRequest) {
         errorMessage = `HTTP ${response.status}: ${response.statusText}`
       }
       
-      console.error("Skywork API error:", errorMessage)
+      console.error("Sonu API error:", errorMessage)
       return NextResponse.json(
         { error: errorMessage },
         { status: response.status },
@@ -89,20 +94,27 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await response.json()
-    console.log("Music generation successful, audio URL:", result.audio_url)
+    
+    if (!result.success || !result.data?.audio_url) {
+      throw new Error(result.message || "Failed to generate music")
+    }
 
-    // CORREÇÃO: Salvar música no banco com tratamento de erro
+    console.log("Music generation successful, audio URL:", result.data.audio_url)
+
+    // Salvar música no banco com tratamento de erro
     const songData = {
       user_id: user.id,
-      title: title?.trim() || "Generated Music",
+      title: title?.trim() || `Generated ${style} Music`,
       style: style,
       status: "completed",
-      audio_url: result.audio_url,
+      audio_url: result.data.audio_url,
       metadata: {
-        provider: "skywork.ai",
-        duration: duration,
+        provider: "sonu.ai",
+        duration: result.data.duration || duration,
         style: style,
         prompt: prompt,
+        bpm: result.data.bpm,
+        model: result.data.model
       },
     }
 

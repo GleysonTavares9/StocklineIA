@@ -225,6 +225,13 @@ export default function MusicGeneratorNew({ user, profile, subscription, unreadN
       const sunoPrompt = buildSunoPrompt()
       const title = titleText || `Música ${isInstrumental ? 'Instrumental' : ''} ${new Date().toLocaleDateString()}`
 
+      // Mostrar notificação de processamento
+      toast({
+        title: "Processando sua música...",
+        description: "Isso pode levar alguns instantes.",
+        duration: 5000,
+      })
+
       const response = await fetch("/api/suno/generate", {
         method: "POST",
         headers: {
@@ -233,30 +240,33 @@ export default function MusicGeneratorNew({ user, profile, subscription, unreadN
         body: JSON.stringify({
           prompt: sunoPrompt,
           title: title,
-          tags: styleText,
+          style: styleText,
           make_instrumental: isInstrumental,
-          wait_audio: false // Não esperar pelo processamento completo
+          duration: 30, // 30 segundos
+          wait_audio: true // Esperar pelo processamento completo
         }),
       })
 
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || data.message || "Falha ao gerar música")
+        console.error('Erro na resposta da API:', { status: response.status, data })
+        throw new Error(data.error || data.message || "Falha ao se comunicar com o servidor de geração de músicas")
       }
 
-      if (data.success) {
+      // Verificar se temos uma URL de áudio válida
+      if (data.audio_url) {
         toast({
-          title: "Música em produção! 🎵",
-          description: "Sua música está sendo gerada e estará disponível em breve na sua biblioteca.",
+          title: "Música gerada com sucesso! ",
+          description: "Sua música está pronta para ser reproduzida.",
         })
-
+        
         // Redirecionar para a biblioteca após um pequeno delay
         setTimeout(() => {
           router.push("/library")
-        }, 3000)
+        }, 2000)
       } else {
-        throw new Error(data.message || "Erro na geração da música")
+        throw new Error("Não foi possível gerar a música. Tente novamente mais tarde.")
       }
 
     } catch (error) {
