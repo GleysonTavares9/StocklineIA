@@ -4,76 +4,87 @@ import { cookies } from 'next/headers'
 export const createClient = () => {
   const cookieStore = cookies()
   
-  // Criando um objeto que implementa a interface esperada
-  const cookieMethods = {
-    getItem: (key: string) => {
-      return cookieStore.get(key)?.value || null
-    },
-    setItem: (key: string, value: string) => {
-      try {
-        cookieStore.set({
-          name: key,
-          value,
-          path: '/',
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-        })
-      } catch (error) {
-        console.error('Error setting cookie:', error)
+  // For server components and route handlers
+  if (typeof window === 'undefined') {
+    return createSupabaseServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value
+          },
+          set(name: string, value: string, options: any) {
+            try {
+              // Only set cookies in server actions or route handlers
+              if (typeof document === 'undefined') {
+                cookieStore.set({
+                  name,
+                  value,
+                  ...options,
+                  httpOnly: true,
+                  secure: process.env.NODE_ENV === 'production',
+                  sameSite: 'lax',
+                  path: '/',
+                })
+              }
+            } catch (error) {
+              // Silently handle cookie setting errors
+              if (process.env.NODE_ENV === 'development') {
+                console.log('Cookie setting skipped in middleware')
+              }
+            }
+          },
+          remove(name: string, options: any) {
+            try {
+              cookieStore.set({
+                name,
+                value: '',
+                ...options,
+                maxAge: 0,
+                path: '/',
+              })
+            } catch (error) {
+              console.error('Error removing cookie in middleware:', error)
+            }
+          },
+        },
       }
-    },
-    removeItem: (key: string) => {
-      try {
-        cookieStore.set({
-          name: key,
-          value: '',
-          maxAge: 0,
-          path: '/',
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-        })
-      } catch (error) {
-        console.error('Error removing cookie:', error)
-      }
-    },
-    getAll: () => {
-      return cookieStore.getAll().map(cookie => ({
-        name: cookie.name,
-        value: cookie.value
-      }))
-    }
+    )
   }
   
+  // For client components
   return createSupabaseServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      auth: {
-        detectSessionInUrl: true,
-        persistSession: true,
-        autoRefreshToken: true,
-      },
       cookies: {
-        get: cookieMethods.getItem,
-        set: (name: string, value: string, options: any) => {
-          cookieMethods.setItem(name, value)
-          return Promise.resolve()
+        get(name: string) {
+          if (typeof document === 'undefined') return null
+          const cookie = document.cookie
+            .split('; ')
+            .find((row) => row.startsWith(`${name}=`))
+            ?.split('=')[1]
+          return cookie ? decodeURIComponent(cookie) : null
         },
-        remove: (name: string, options: any) => {
-          cookieMethods.removeItem(name)
-          return Promise.resolve()
+        set(name: string, value: string, options: any) {
+          try {
+            document.cookie = `${name}=${encodeURIComponent(value)}; ${Object.entries(options)
+              .map(([key, val]) => `${key}=${val}`)
+              .join('; ')}`
+          } catch (error) {
+            console.error('Error setting cookie:', error)
+          }
+        },
+        remove(name: string, options: any) {
+          try {
+            document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=${options?.path || '/'};`
+          } catch (error) {
+            console.error('Error removing cookie:', error)
+          }
         },
       },
-      cookieOptions: {
-        name: 'sb-auth-token',
-        lifetime: 60 * 60 * 24 * 7, // 1 week
-        domain: '',
-        path: '/',
-        sameSite: 'lax'
-      }
-    } as any // Forçando o tipo para evitar erros de tipagem
+    }
   )
 }
 

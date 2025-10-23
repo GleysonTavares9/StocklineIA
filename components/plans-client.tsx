@@ -8,49 +8,60 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Loader2, CheckCircle } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from "@/lib/utils"
+import { SubscribeButton } from '@/components/ui/subscribe-button'
+import { ManageSubscriptionButton } from '@/components/ui/manage-subscription-button'
 
 interface Plan {
   id: string
   name: string
+  description: string
   price: number
   credits: number
   price_id: string
+  features: string[]
+  recommended?: boolean
 }
 
 interface PlansClientProps {
   user: User
-  plans: Plan[]
   subscription: { plan_id: string; status: string } | null
+  plans: {
+    id: string
+    name: string
+    description: string
+    price: number
+    credits: number
+    price_id: string
+    features: string[]
+    recommended?: boolean
+  }[]
 }
 
-const planFeatures: { [key: string]: string[] } = {
-    Básico: [
-        '10 credits per month',
-        'Access to standard music models',
-        'Standard generation speed',
-        'Email support',
-    ],
-    Pro: [
-        '100 credits per month',
-        'Access to all music styles',
-        'Priority generation queue',
-        'Priority email support',
-    ],
-    Premium: [
-        '500 credits per month',
-        'Access to all music styles',
-        'Highest priority queue',
-        '24/7 dedicated support',
-        'Early access to new features',
-    ],
-};
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2
+  }).format(value)
+}
 
-export default function PlansClient({ user, plans, subscription }: PlansClientProps) {
+const calculateMonthlySongs = (credits: number) => {
+  return Math.floor(credits / 20) // 20 créditos por música
+}
+
+export default function PlansClient({ user, subscription, plans }: PlansClientProps) {
   const router = useRouter()
   const { toast } = useToast()
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<string>('monthly')
+  const [styleText, setStyleText] = useState<string>('')
+  
+  // Verifica se o código está sendo executado no navegador
+  const isClient = typeof window !== 'undefined'
 
-  const handleSubscribe = async (price_id: string) => {
+  const handleSubscribe = async (price_id: string): Promise<void> => {
+    if (!isClient) return;
+    
     setLoadingPlanId(price_id)
     try {
       const response = await fetch('/api/subscribe', {
@@ -73,21 +84,31 @@ export default function PlansClient({ user, plans, subscription }: PlansClientPr
         throw new Error('Could not get subscription link.')
       }
     } catch (error) {
+      console.error('Subscription error:', error);
       toast({
         title: 'Error',
-        description: (error as Error).message,
+        description: (error as Error).message || 'An error occurred while processing your subscription.',
         variant: 'destructive',
       })
       setLoadingPlanId(null)
     }
   }
 
-  const handleManageSubscription = async () => {
+  const handleManageSubscription = async (): Promise<void> => {
+    if (!isClient) return;
+    
     setLoadingPlanId('portal');
     try {
       const response = await fetch('/api/portal', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch portal URL');
+      }
 
       const { url, error } = await response.json();
 
@@ -101,14 +122,24 @@ export default function PlansClient({ user, plans, subscription }: PlansClientPr
         throw new Error('Could not get management link.');
       }
     } catch (error) {
+      console.error('Portal error:', error);
       toast({
         title: 'Error',
-        description: (error as Error).message,
+        description: (error as Error).message || 'An error occurred while accessing the customer portal.',
         variant: 'destructive',
       });
       setLoadingPlanId(null);
     }
   };
+  // Remover planos duplicados baseados no price_id
+  const uniquePlans = plans.reduce((acc: typeof plans, current) => {
+    const x = acc.find(item => item.price_id === current.price_id);
+    if (!x) {
+      return acc.concat([current]);
+    } else {
+      return acc;
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -120,37 +151,28 @@ export default function PlansClient({ user, plans, subscription }: PlansClientPr
           </p>
           {subscription && (
             <div className="mt-8">
-              <Button
-                onClick={handleManageSubscription}
-                disabled={loadingPlanId === 'portal'}
-                variant="outline"
-                className="border-gray-300 hover:bg-gray-100"
-              >
-                {loadingPlanId === 'portal' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Gerenciar Assinatura
-              </Button>
+              <ManageSubscriptionButton />
             </div>
           )}
         </div>
 
         <div className="w-full max-w-5xl mx-auto px-2 sm:px-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {plans.map((plan, index) => {
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+            {uniquePlans.map((plan, index) => {
               const isHighlighted = index === 1;
-              const features = planFeatures[plan.name] || [];
               return (
                 <Card 
                   key={plan.id} 
                   className={cn(
                     "relative flex flex-col transform transition-all duration-300 hover:shadow-md h-full border-2",
                     {
-                      "border-[#338d97] scale-[1.02] sm:scale-100 sm:hover:scale-[1.02]": isHighlighted,
-                      "border-gray-200 bg-white": !isHighlighted,
-                      "mt-6 sm:mt-0": isHighlighted
+                      "border-[#338d97] scale-[1.02] sm:scale-100 sm:hover:scale-[1.02]": plan.recommended,
+                      "border-gray-200 bg-white": !plan.recommended,
+                      "mt-6 sm:mt-0": plan.recommended
                     }
                   )}
                 >
-                  {isHighlighted && (
+                  {plan.recommended && (
                     <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
                       <div className="bg-[#338d97] text-white text-xs font-semibold px-4 py-1.5 rounded-full whitespace-nowrap shadow-md">
                         Mais Popular
@@ -159,15 +181,25 @@ export default function PlansClient({ user, plans, subscription }: PlansClientPr
                   )}
                   <CardHeader className="text-center pt-7 pb-4 px-4 sm:px-6">
                     <CardTitle className="text-xl sm:text-2xl font-semibold text-gray-900">{plan.name}</CardTitle>
-                    <CardDescription className="text-sm sm:text-base text-gray-600">{plan.credits} créditos/mês</CardDescription>
+                    <CardDescription className="text-sm sm:text-base text-gray-600">
+                      {calculateMonthlySongs(plan.credits)} músicas/mês
+                    </CardDescription>
+                    <p className="text-xs text-gray-500 mt-1">
+                      ({plan.credits} créditos)
+                    </p>
                   </CardHeader>
                   <CardContent className="flex-grow flex flex-col items-center text-center px-4 sm:px-6 py-2">
                     <div className="mb-4">
-                      <span className="text-3xl sm:text-4xl font-bold text-gray-900">R${plan.price.toFixed(2)}</span>
+                      <span className="text-3xl sm:text-4xl font-bold text-gray-900">
+                        {formatCurrency(plan.price)}
+                      </span>
                       <span className="text-gray-500 text-sm sm:text-base">/mês</span>
+                      <p className="text-sm text-gray-500 mt-1">
+                        {plan.price > 0 ? `Apenas R$${(plan.price / calculateMonthlySongs(plan.credits)).toFixed(2)} por música` : 'Grátis'}
+                      </p>
                     </div>
                     <ul className="space-y-2.5 text-gray-600 text-sm sm:text-[0.9375rem] text-left w-full">
-                      {features.map((feature, i) => (
+                      {plan.features.map((feature, i) => (
                         <li key={i} className="flex items-start group">
                           <CheckCircle className="mr-3 h-4 w-4 sm:h-5 sm:w-5 text-[#338d97] mt-0.5 flex-shrink-0 group-hover:scale-110 transition-transform" />
                           <span className="text-sm sm:text-[0.9375rem] leading-relaxed">{feature}</span>
@@ -176,30 +208,15 @@ export default function PlansClient({ user, plans, subscription }: PlansClientPr
                     </ul>
                   </CardContent>
                   <CardFooter className="p-4 sm:p-6 pt-0">
-                    {subscription?.plan_id === plan.id ? (
-                      <Button 
-                        disabled 
-                        className="w-full h-12 sm:h-11 text-sm sm:text-base font-medium"
-                        variant="outline"
-                      >
-                        Plano Atual
-                      </Button>
-                    ) : (
-                      <Button
-                        onClick={() => handleSubscribe(plan.price_id)}
-                        disabled={loadingPlanId === plan.price_id}
-                        className={cn("w-full h-12 sm:h-11 text-sm sm:text-base font-medium transition-all duration-200", {
-                          "bg-[#338d97] hover:bg-[#2a7a83] text-white shadow-md hover:shadow-lg": isHighlighted,
-                          "text-[#338d97] border-2 border-[#338d97] hover:bg-gray-50 hover:border-[#2a7a83]": !isHighlighted
-                        })}
-                        variant={isHighlighted ? 'default' : 'outline'}
-                      >
-                        {loadingPlanId === plan.price_id ? (
-                          <Loader2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
-                        ) : null}
-                        {loadingPlanId === plan.price_id ? 'Processando...' : 'Assinar Agora'}
-                      </Button>
-                    )}
+                    <SubscribeButton
+                      plan={{
+                        id: plan.id,
+                        price_id: plan.price_id,
+                        price: plan.price,
+                        recommended: plan.recommended
+                      }}
+                      isCurrentPlan={subscription?.plan_id === plan.id}
+                    />
                   </CardFooter>
                 </Card>
               )

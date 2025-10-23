@@ -1,48 +1,40 @@
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
-import FeaturedClient from "@/components/featured-client"
-import { cookies } from "next/headers"
 
 export default async function FeaturedPage() {
   const supabase = await createClient()
 
-  const { data: { user }, error } = await supabase.auth.getUser()
-
-  if (error || !user) {
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  
+  if (authError || !user) {
     redirect("/auth/login")
   }
 
-  // Get user profile
-  const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single()
-
-  // Get unread notifications count
-  const { count: unreadNotifications } = await supabase
-    .from("notifications")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .eq("read", false)
-
-  // Get featured songs (completed songs ordered by created_at)
-  const { data: featuredSongs } = await supabase
-    .from("songs")
-    .select(`
-      *,
-      profiles:user_id (
-        display_name,
-        email
-      )
-    `)
-    .eq("status", "completed")
-    .not("audio_url", "is", null)
-    .order("created_at", { ascending: false })
-    .limit(20)
-
   return (
-    <FeaturedClient
-      user={user}
-      profile={profile}
-      unreadNotifications={unreadNotifications || 0}
-      featuredSongs={featuredSongs || []}
-    />
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">Músicas em Destaque</h1>
+        
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Placeholder para músicas em destaque */}
+            {[1, 2, 3, 4].map((item) => (
+              <div key={item} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                <div className="flex items-center space-x-4">
+                  <div className="w-16 h-16 bg-gray-200 rounded-lg flex-shrink-0"></div>
+                  <div>
+                    <h3 className="font-medium text-gray-900">Música em Destaque {item}</h3>
+                    <p className="text-sm text-gray-500">Artista {item}</p>
+                    <button className="mt-2 text-sm text-[#338d97] hover:underline">
+                      Reproduzir
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }

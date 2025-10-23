@@ -25,6 +25,14 @@ interface HeaderProps {
     email: string
     display_name: string | null
     credits: number
+    avatar_url?: string | null
+    username?: string
+    full_name?: string | null
+    website?: string | null
+    plan_id?: string | null
+    stripe_customer_id?: string | null
+    created_at?: string
+    updated_at?: string | null
   } | null
   unreadNotifications: number
 }
@@ -33,7 +41,7 @@ export default function Header({ user, profile, unreadNotifications }: HeaderPro
   const router = useRouter()
 
   const displayName = profile?.display_name || user.email?.split("@")[0] || "Usuário"
-  const avatarInitial = displayName[0]?.toUpperCase() || "U"
+  const avatarInitial = displayName?.[0]?.toUpperCase() || "U"
   const t = ptBR.header
 
   const handleLogout = async () => {
@@ -49,10 +57,12 @@ export default function Header({ user, profile, unreadNotifications }: HeaderPro
         <h1 className="text-xl font-bold text-gray-900">{t.appName}</h1>
       </div>
       <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2 bg-gray-100 border border-gray-200 rounded-full px-3 py-1">
-          <CreditCard className="w-4 h-4 text-[#338d97]" />
-          <span className="text-sm font-medium text-gray-700">{profile?.credits || 0} créditos</span>
-        </div>
+        {profile && (
+          <div className="flex items-center gap-2 bg-gray-100 border border-gray-200 rounded-full px-3 py-1">
+            <CreditCard className="w-4 h-4 text-[#338d97]" />
+            <span className="text-sm font-medium text-gray-700">{profile.credits || 0} créditos</span>
+          </div>
+        )}
 
         <Button
           variant="ghost"
@@ -86,9 +96,24 @@ export default function Header({ user, profile, unreadNotifications }: HeaderPro
             <DropdownMenuContent className="w-56" align="end" forceMount>
               <div className="flex items-center gap-3 p-3 border-b">
                 <Avatar className="h-10 w-10">
-                  <AvatarFallback className="bg-[#338d97] text-white font-medium">
-                    {avatarInitial}
-                  </AvatarFallback>
+                  {profile?.avatar_url ? (
+                    <div className="relative w-full h-full">
+                      <img 
+                        src={profile.avatar_url} 
+                        alt={displayName}
+                        className="w-full h-full object-cover rounded-full"
+                        onError={(e) => {
+                          // Se houver erro ao carregar a imagem, mostra o fallback
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <AvatarFallback className="bg-[#338d97] text-white font-medium">
+                      {avatarInitial}
+                    </AvatarFallback>
+                  )}
                 </Avatar>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">{displayName}</p>
@@ -96,7 +121,7 @@ export default function Header({ user, profile, unreadNotifications }: HeaderPro
                 </div>
               </div>
               <DropdownMenuGroup>
-                <DropdownMenuItem onClick={() => router.push('/profile')}>
+                <DropdownMenuItem onClick={() => router.push('/perfil')}>
                   <User className="mr-2 h-4 w-4" />
                   <span>{t.userMenu.profile}</span>
                 </DropdownMenuItem>
