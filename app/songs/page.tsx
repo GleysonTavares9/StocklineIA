@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 
+export const dynamic = 'force-dynamic' // Impede a renderização estática
+
 export default async function SongsPage() {
   const supabase = await createClient()
 

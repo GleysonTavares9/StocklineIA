@@ -2,15 +2,14 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { cookies } from "next/headers"
 
+export const dynamic = 'force-dynamic' // Impede a renderização estática
+
 export async function POST(request: NextRequest) {
   try {
-    // CORREÇÃO: Aguardar cookies()
-    const cookieStore = await cookies()
     const body = await request.json()
     const { prompt, duration = 30, style = "electronic", title } = body
 
-    // CORREÇÃO: Passar cookies para createClient
-    const supabase = createClient(cookieStore)
+    const supabase = createClient()
     
     const {
       data: { user },

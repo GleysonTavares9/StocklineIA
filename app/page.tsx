@@ -2,6 +2,8 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import MusicGeneratorNew from "@/components/music-generator-new"
 
+export const dynamic = 'force-dynamic' // Impede a renderização estática
+
 export default async function StocklineIAPage() {
   try {
     const supabase = await createClient()

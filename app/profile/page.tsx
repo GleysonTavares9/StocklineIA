@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+
+export const dynamic = 'force-dynamic' // Impede a renderização estática
 import { LogOut } from "lucide-react"
 import Link from "next/link"
 import { cookies } from "next/headers"

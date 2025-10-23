@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Music, CreditCard, Bell, FileAudio } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+
+export const dynamic = 'force-dynamic' // Impede a renderização estática
 import Link from 'next/link';
 
 export default async function DashboardPage() {
