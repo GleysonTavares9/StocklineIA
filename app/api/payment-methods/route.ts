@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { getPaymentMethods } from '@/lib/stripe';
 import Stripe from 'stripe';
 
+export const dynamic = 'force-dynamic'; // Impede a renderização estática
+
 // Habilita logs detalhados em desenvolvimento
 const isDev = process.env.NODE_ENV === 'development';
 

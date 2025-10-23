@@ -3,13 +3,14 @@ import { NextResponse } from 'next/server';
 import { Stripe } from 'stripe';
 import { cookies } from 'next/headers';
 
+export const dynamic = 'force-dynamic'; // Impede a renderização estática
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-10-16',
 });
 
 export async function POST(req: Request) {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
+  const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {

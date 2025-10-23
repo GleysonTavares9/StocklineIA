@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
+export const dynamic = 'force-dynamic'; // Impede a renderização estática
+
 type CallbackData = {
   taskId: string;
   status: 'completed' | 'failed' | 'processing';
