@@ -17,8 +17,11 @@ if (!global.fetch) {
   global.fetch = fetch as any;
 }
 
-// No Vercel, variáveis de ambiente no servidor não precisam do prefixo NEXT_PUBLIC_
-const API_KEY = process.env.GOOGLE_AI_API_KEY || '';
+// Tenta obter a chave da API de diferentes fontes para compatibilidade
+const API_KEY = 
+  process.env.GOOGLE_AI_API_KEY || // Vercel
+  process.env.NEXT_PUBLIC_GOOGLE_AI_API_KEY || // Variavel pública (não recomendado para chaves)
+  '';
 const BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
 // Usando o modelo Gemini 2.0 Flash, que é mais rápido e eficiente
 const MODEL_NAME = 'models/gemini-2.0-flash';
